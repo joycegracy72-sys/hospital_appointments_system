@@ -1,0 +1,55 @@
+# Environment & Credentials (NEVER COMMIT REAL PASSWORDS)
+application.properties
+application-local.properties
+.env
+*.local
+!backend/src/test/resources/application.properties
+
+# Java / Maven build artifacts
+target/
+backend/target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven wrapper jar (can be kept or ignored, scripts can re-download if needed)
+# Keep .mvn/wrapper/maven-wrapper.properties and wrapper scripts
+!backend/.mvn/wrapper/maven-wrapper.properties
+!backend/.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+backend/*.log
+logs/
+
+# IDE & Editor files
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+.project
+.classpath
+.settings/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Frontend / Vite / Node
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.vite/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Temporary files
+temp_backend/
+backend_starter.zip

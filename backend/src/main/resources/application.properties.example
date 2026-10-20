@@ -1,0 +1,27 @@
+# ===================================================================
+# Hospital Appointment and Patient Management System - Configuration Example
+# Copy this file to application.properties and update the credentials,
+# OR set the environment variables: DB_URL, DB_USERNAME, DB_PASSWORD
+# ===================================================================
+
+# Application Info
+spring.application.name=hospital-appointment-system
+server.port=8080
+
+# Database Configuration (MySQL via JDBC / HikariCP)
+# Replace YOUR_MYSQL_PASSWORD_HERE with your local MySQL password
+spring.datasource.url=jdbc:mysql://localhost:3306/hospital_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+spring.datasource.username=root
+spring.datasource.password=YOUR_MYSQL_PASSWORD_HERE
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+# HikariCP Connection Pool
+spring.datasource.hikari.pool-name=HospitalHikariCP
+spring.datasource.hikari.maximum-pool-size=10
+spring.datasource.hikari.minimum-idle=2
+spring.datasource.hikari.idle-timeout=30000
+spring.datasource.hikari.connection-timeout=20000
+
+# JSON Serialization
+spring.jackson.date-format=yyyy-MM-dd
+spring.jackson.time-zone=UTC
