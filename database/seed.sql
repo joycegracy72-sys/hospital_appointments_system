@@ -8,7 +8,7 @@ USE hospital_db;
 -- Clear existing data
 SET FOREIGN_KEY_CHECKS = 0;
 TRUNCATE TABLE appointments;
-TRUNCATE TABLE doctor_availabilities;
+TRUNCATE TABLE doctor_availability;
 TRUNCATE TABLE doctors;
 TRUNCATE TABLE patients;
 SET FOREIGN_KEY_CHECKS = 1;
@@ -25,39 +25,17 @@ VALUES
 (5, 'Suresh', 'Menon', 'General Medicine', 'suresh.menon@hospital.org', '+91 94470 56789', 400.00, TRUE);
 
 -- -------------------------------------------------------------------
--- 2. Insert Doctor Availabilities (Recurring Weekly Schedule)
+-- 2. Insert Doctor Availability (Date-Specific Availability)
 -- -------------------------------------------------------------------
-INSERT INTO doctor_availabilities (doctor_id, day_of_week, start_time, end_time, slot_duration_minutes, is_active)
+INSERT INTO doctor_availability (doctor_id, available_date, start_time, end_time)
 VALUES
--- Dr. Rajesh Sharma (Cardiology) - Mon, Wed, Fri (09:00 - 13:00)
-(1, 'MONDAY', '09:00:00', '13:00:00', 30, TRUE),
-(1, 'WEDNESDAY', '09:00:00', '13:00:00', 30, TRUE),
-(1, 'FRIDAY', '09:00:00', '13:00:00', 30, TRUE),
-
--- Dr. Priya Nair (Dermatology) - Tue, Thu, Sat (10:00 - 14:00)
-(2, 'TUESDAY', '10:00:00', '14:00:00', 30, TRUE),
-(2, 'THURSDAY', '10:00:00', '14:00:00', 30, TRUE),
-(2, 'SATURDAY', '10:00:00', '13:00:00', 30, TRUE),
-
--- Dr. Ananya Iyer (Pediatrics) - Mon, Tue, Wed, Thu, Fri (14:00 - 18:00)
-(3, 'MONDAY', '14:00:00', '18:00:00', 30, TRUE),
-(3, 'TUESDAY', '14:00:00', '18:00:00', 30, TRUE),
-(3, 'WEDNESDAY', '14:00:00', '18:00:00', 30, TRUE),
-(3, 'THURSDAY', '14:00:00', '18:00:00', 30, TRUE),
-(3, 'FRIDAY', '14:00:00', '18:00:00', 30, TRUE),
-
--- Dr. Vikram Patel (Orthopedics) - Mon, Wed, Sat (10:00 - 15:00)
-(4, 'MONDAY', '10:00:00', '15:00:00', 30, TRUE),
-(4, 'WEDNESDAY', '10:00:00', '15:00:00', 30, TRUE),
-(4, 'SATURDAY', '10:00:00', '14:00:00', 30, TRUE),
-
--- Dr. Suresh Menon (General Medicine) - Mon to Sat (09:00 - 12:00, 16:00 - 19:00)
-(5, 'MONDAY', '09:00:00', '12:00:00', 30, TRUE),
-(5, 'TUESDAY', '09:00:00', '12:00:00', 30, TRUE),
-(5, 'WEDNESDAY', '09:00:00', '12:00:00', 30, TRUE),
-(5, 'THURSDAY', '09:00:00', '12:00:00', 30, TRUE),
-(5, 'FRIDAY', '09:00:00', '12:00:00', 30, TRUE),
-(5, 'SATURDAY', '09:00:00', '12:00:00', 30, TRUE);
+(1, CURRENT_DATE + INTERVAL 1 DAY, '09:00:00', '13:00:00'),
+(1, CURRENT_DATE + INTERVAL 2 DAY, '09:00:00', '13:00:00'),
+(2, CURRENT_DATE + INTERVAL 1 DAY, '10:00:00', '14:00:00'),
+(2, CURRENT_DATE + INTERVAL 3 DAY, '10:00:00', '14:00:00'),
+(3, CURRENT_DATE + INTERVAL 1 DAY, '14:00:00', '18:00:00'),
+(4, CURRENT_DATE + INTERVAL 2 DAY, '10:00:00', '15:00:00'),
+(5, CURRENT_DATE + INTERVAL 1 DAY, '09:00:00', '13:00:00');
 
 -- -------------------------------------------------------------------
 -- 3. Insert Patients

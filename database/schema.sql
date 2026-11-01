@@ -9,6 +9,7 @@ USE hospital_db;
 -- Disable foreign key checks for clean drops
 SET FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS appointments;
+DROP TABLE IF EXISTS doctor_availability;
 DROP TABLE IF EXISTS doctor_availabilities;
 DROP TABLE IF EXISTS doctors;
 DROP TABLE IF EXISTS patients;
@@ -57,20 +58,18 @@ CREATE TABLE doctors (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------
--- 3. Doctor Availabilities Table
--- Configures weekly recurring working hours/slots for each doctor.
+-- 3. Doctor Availability Table
+-- Configures specific available dates and time slots for each doctor.
 -- -------------------------------------------------------------------
-CREATE TABLE doctor_availabilities (
+CREATE TABLE doctor_availability (
     availability_id INT AUTO_INCREMENT PRIMARY KEY,
     doctor_id INT NOT NULL,
-    day_of_week ENUM('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY') NOT NULL,
+    available_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    slot_duration_minutes INT NOT NULL DEFAULT 30,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
     FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id) ON DELETE CASCADE,
-    CONSTRAINT uq_doctor_slot UNIQUE (doctor_id, day_of_week, start_time),
-    INDEX idx_availability_doc_day (doctor_id, day_of_week)
+    CONSTRAINT uq_doctor_slot UNIQUE (doctor_id, available_date, start_time),
+    INDEX idx_availability_doc_date (doctor_id, available_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------
