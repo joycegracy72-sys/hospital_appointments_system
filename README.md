@@ -1,6 +1,6 @@
 # Hospital Appointment and Patient Management System
 
-A production-grade, multi-tier College Mini-Project developed for 2nd-Year B.E. Computer Science students. Demonstrates Clean Object-Oriented Design, RESTful API architecture, parameterized SQL via **Spring JdbcTemplate** (strictly **NO** ORM / Hibernate / JPA), and MySQL integration.
+A full-stack, production-grade College Mini-Project developed for 2nd-Year B.E. Computer Science students. Demonstrates clean multi-tier architecture, RESTful APIs, explicit parameterized SQL via **Spring JdbcTemplate** (strictly **NO** ORM / Hibernate / JPA), and **MySQL 8.0** integration.
 
 ---
 
@@ -10,6 +10,7 @@ A production-grade, multi-tier College Mini-Project developed for 2nd-Year B.E. 
 +--------------------------------------------------------------+
 |                    Vite + Tailwind CSS SPA                   |
 |     (HTML5, Modern JavaScript, Responsive Dashboard UI)      |
+|               Runs on: http://localhost:5173                 |
 +--------------------------------------------------------------+
                               |
                               | HTTP / REST (JSON)
@@ -17,6 +18,7 @@ A production-grade, multi-tier College Mini-Project developed for 2nd-Year B.E. 
 +--------------------------------------------------------------+
 |                   Spring Boot REST Controllers               |
 |      (PatientController, DoctorController, Appointment, etc) |
+|               Runs on: http://localhost:8080                 |
 +--------------------------------------------------------------+
                               |
                               v
@@ -31,11 +33,12 @@ A production-grade, multi-tier College Mini-Project developed for 2nd-Year B.E. 
 |   (Pure Spring JdbcTemplate, Parameterized SQL, RowMappers)  |
 +--------------------------------------------------------------+
                               |
-                              | JDBC (HikariCP)
+                              | JDBC (HikariCP Pool)
                               v
 +--------------------------------------------------------------+
 |                     MySQL 8.0 Database                       |
-|         (Tables: patients, doctors, availabilities, appts)   |
+|   (Tables: patients, doctors, doctor_availability, appts)    |
+|                Database: hospital_db:3306                    |
 +--------------------------------------------------------------+
 ```
 
@@ -43,11 +46,11 @@ A production-grade, multi-tier College Mini-Project developed for 2nd-Year B.E. 
 
 ## 🚀 Tech Stack
 
-- **Backend:** Java (OpenJDK 21 / 25), Spring Boot, Maven Wrapper (`mvnw`).
-- **Persistence:** Spring `JdbcTemplate` with explicit parameterized queries (PreparedStatements).
-- **Database:** MySQL Community Server 8.0.
-- **Frontend (Upcoming):** HTML5, Tailwind CSS, JavaScript (ES6+), Vite.
-- **Testing:** JUnit 5, H2 Database (in-memory for isolated test runner).
+- **Frontend:** HTML5, Modern JavaScript (ES6+), Tailwind CSS, Vite, PostCSS.
+- **Backend:** Java (OpenJDK 25 LTS / 21), Spring Boot 4.x, Apache Maven Wrapper (`mvnw`).
+- **Persistence:** Spring `JdbcTemplate` with explicit parameterized queries (`PreparedStatement`), `DataSourceTransactionManager`.
+- **Database:** MySQL Community Server 8.0 (`hospital_db`).
+- **Testing:** JUnit 5, Mockito, Spring MockMvc, H2 (in-memory MySQL mode for isolated offline testing).
 
 ---
 
@@ -55,115 +58,128 @@ A production-grade, multi-tier College Mini-Project developed for 2nd-Year B.E. 
 
 ```text
 OOPS PRO/
-├── .gitignore                          # Excludes secrets, target/, node_modules/
-├── README.md                           # Documentation & setup guide
+├── .gitignore                          # Excludes credentials, build artifacts, node_modules
+├── README.md                           # Documentation & viva presentation guide
+├── start-backend.ps1                   # One-click PowerShell launch script for backend
+├── start-frontend.ps1                  # One-click PowerShell launch script for frontend
 ├── database/
 │   ├── schema.sql                      # DDL for hospital_db tables and indexes
-│   └── seed.sql                        # Realistic demo records (doctors, patients, visits)
+│   └── seed.sql                        # Realistic demo records (patients, doctors, slots)
 ├── backend/                            # Spring Boot REST API
 │   ├── mvnw / mvnw.cmd                 # Maven Wrapper (no global Maven install required)
-│   ├── pom.xml                         # Dependencies (spring-boot-starter-jdbc, mysql-connector-j)
+│   ├── pom.xml                         # Dependencies (zero JPA/Hibernate)
 │   └── src/
 │       ├── main/
 │       │   ├── java/com/hospital/
 │       │   │   ├── HospitalManagementApplication.java
-│       │   │   └── config/
-│       │   │       ├── CorsConfig.java          # Cross-origin policy for frontend
-│       │   │       └── DatabaseConfig.java      # JdbcTemplate & TransactionManager setup
+│       │   │   ├── config/
+│       │   │   │   ├── CorsConfig.java           # Cross-origin policy for localhost:5173
+│       │   │   │   └── DatabaseConfig.java       # JdbcTemplate & TransactionManager setup
+│       │   │   ├── controller/                   # REST API Endpoints
+│       │   │   │   ├── PatientController.java    # /api/patients
+│       │   │   │   ├── DoctorController.java     # /api/doctors
+│       │   │   │   ├── AppointmentController.java# /api/appointments
+│       │   │   │   └── DashboardController.java  # /api/dashboard/stats
+│       │   │   ├── dto/                          # Request & Response Transfer Objects
+│       │   │   ├── exception/                    # Global Exception Handler
+│       │   │   ├── model/                        # Domain Models (Patient, Doctor, Appointment)
+│       │   │   ├── repository/                   # Pure JdbcTemplate parameter-driven SQL
+│       │   │   └── service/                      # Overlap detection & Transactional logic
 │       │   └── resources/
-│       │       ├── application.properties.example # Template (committed)
-│       │       └── application.properties         # Local config (gitignored)
-│       └── test/
-│           ├── java/com/hospital/HospitalManagementApplicationTests.java
-│           └── resources/application.properties  # H2 in-memory test config
-└── frontend/                           # Vite SPA (Milestone 4)
+│       │       ├── application.properties.example# Template configuration (committed)
+│       │       ├── application.properties        # Local config (gitignored)
+│       │       └── static/                       # Pre-built Vite SPA bundle for all-in-one run
+│       └── test/                                 # 8 Automated unit & integration tests
+└── frontend/                           # Vite + Tailwind CSS Single Page Application
+    ├── index.html
+    ├── package.json
+    ├── vite.config.js                   # Proxies /api to http://localhost:8080
+    ├── tailwind.config.js
+    └── src/
+        ├── api.js                      # REST API client mapping
+        ├── main.js                     # SPA views, modals, toasts, filters
+        └── style.css                   # Tailwind styles
 ```
 
 ---
 
-## 🛠️ Step-by-Step Setup Guide
+## ⚡ Quick Start & Run Instructions
 
-### 1. Database Setup in MySQL
+### Step 1: Start the Backend (Port 8080)
 
-You can initialize the database using either **MySQL Command Line** or **MySQL Workbench**.
-
-#### Option A: Using MySQL Command Line (PowerShell)
-Execute the following commands in PowerShell. Replace `"YOUR_PASSWORD"` with your MySQL `root` password:
+Open a PowerShell terminal and set your MySQL password for the session, then run the Maven Wrapper:
 
 ```powershell
-# 1. Execute schema creation
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p -e "source database/schema.sql"
+# Set your MySQL root password for the active terminal session
+$env:DB_PASSWORD = "your_mysql_password"
 
-# 2. (Optional) Load realistic demo seed data
-& "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p -e "source database/seed.sql"
-```
-
-#### Option B: Using MySQL Workbench
-1. Open **MySQL Workbench** and connect to your local MySQL instance.
-2. Go to **File -> Open SQL Script...** and select `database/schema.sql`.
-3. Click the **Execute (⚡ lightning bolt)** icon.
-4. (Optional) Repeat the same step with `database/seed.sql` to populate sample patients, doctors, and appointments.
-
----
-
-### 2. Configure Database Credentials
-
-The application is engineered to never hardcode credentials. You can provide your password in **either** of two ways:
-
-#### Option A: Environment Variable (Recommended)
-Set the environment variable in your terminal before running:
-```powershell
-# In PowerShell:
-$env:DB_PASSWORD="your_mysql_password"
-
-# In Command Prompt (cmd):
-set DB_PASSWORD=your_mysql_password
-```
-
-#### Option B: Local Properties File
-Edit `backend/src/main/resources/application.properties` (this file is excluded from Git so your password will never be committed):
-```properties
-spring.datasource.username=root
-spring.datasource.password=your_actual_password
-```
-
----
-
-### 3. Build & Run the Backend
-
-Navigate to the `backend` directory and use the included **Maven Wrapper**:
-
-```powershell
+# Launch backend using Maven Wrapper
 cd backend
-
-# Run automated tests
-.\mvnw.cmd clean test
-
-# Run the backend server
 .\mvnw.cmd spring-boot:run
 ```
 
-Once started, the backend server will be listening at:  
+> **Convenience:** You can also simply run `.\start-backend.ps1` from the project root!
+
+Once started, the backend is active at:
 👉 **`http://localhost:8080`**
+
+---
+
+### Step 2: Start the Frontend (Port 5173)
+
+Open a second PowerShell terminal:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+> **Convenience:** You can also run `.\start-frontend.ps1`!
+
+Open your browser at:
+👉 **`http://localhost:5173`**
+
+---
+
+## 🧪 Automated Testing
+
+Run the automated test suite completely offline (uses in-memory H2 database with exact MySQL schema):
+
+```powershell
+cd backend
+.\mvnw.cmd test
+```
+
+### Verified Tests:
+- `HospitalManagementApplicationTests`: Verifies Spring application context and `JdbcTemplate` wiring.
+- `JdbcRepositoryIntegrationTest`: Validates patient insertion, doctor availability check, appointment booking, 3-table SQL JOIN queries, overlap collision detection, and patient soft deactivation.
+- `AppointmentServiceTest`: Verifies business logic, time boundary validation, deactivated patient rejection, rescheduling, and cancellation.
+- `PatientAndDoctorControllerTest`: Validates HTTP 200 OK responses, JSON envelope serialization, and REST controller endpoints using MockMvc.
 
 ---
 
 ## 🎓 Academic / Viva Highlights
 
-- **Why JdbcTemplate instead of Hibernate / JPA?**
-  1. **Complete Control:** SQL queries are explicitly written, making query performance, join logic, and execution plans predictable and transparent.
-  2. **No Hidden Overhead:** Avoids N+1 query traps, lazy-loading exceptions, and unintended entity cascade side-effects.
-  3. **Direct Demonstration of SQL Skills:** Allows students to demonstrate knowledge of indexes, parameterized queries, and ACID transaction boundaries.
+### 1. Why JdbcTemplate instead of Hibernate / JPA?
+- **Explicit SQL Control:** Query performance, table joins, and execution plans are clear, predictable, and written by hand.
+- **Academic Demonstration:** Demonstrates mastery of database constraints, foreign keys, transactions, and parameterized PreparedStatements.
+- **No Hidden Magic:** Eliminates lazy-loading exceptions, N+1 query surprises, and inadvertent cascading deletions.
 
-- **How is Appointment Double-Booking Prevented?**
-  Every booking request runs inside an isolated `@Transactional` service boundary with an explicit overlap check:
-  ```sql
-  SELECT COUNT(*) FROM appointments 
-  WHERE doctor_id = ? 
-    AND appointment_date = ? 
-    AND status IN ('SCHEDULED') 
-    AND (start_time < ? AND end_time > ?)
-  ```
+### 2. How is Double-Booking Prevented?
+Every appointment creation or rescheduling executes inside an isolated `@Transactional` service boundary:
+```sql
+SELECT COUNT(*) FROM appointments 
+WHERE doctor_id = ? 
+  AND appointment_date = ? 
+  AND status IN ('SCHEDULED', 'RESCHEDULED') 
+  AND (start_time < ? AND end_time > ?) 
+  AND (? IS NULL OR appointment_id != ?)
+```
+If this count is greater than zero, the service throws a `BusinessConflictException` (mapped to HTTP 409 Conflict), preventing overlapping bookings.
 
-- **How are Inactive Records Handled?**
-  Patients and doctors use a soft-deactivation flag (`is_active = FALSE`). Deactivating a patient preserves all historical appointments for medical audit logs and reporting, while filtering them out from new appointment booking dialogs.
+### 3. How is Patient History Preserved?
+When a patient is deactivated:
+```sql
+UPDATE patients SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE patient_id = ?
+```
+The patient is hidden from the booking form, but their historical consultation records and audit logs remain linked via foreign keys (`ON DELETE RESTRICT`).
