@@ -3,6 +3,9 @@
 -- Database Schema Definition (MySQL 8.0+)
 -- ===================================================================
 
+-- For Local MySQL: creates and selects hospital_db
+-- For Managed Cloud MySQL (e.g. Aiven free tier, where database is typically 'defaultdb'):
+-- If your cloud user does not have CREATE DATABASE permissions, skip or comment the next 2 lines.
 CREATE DATABASE IF NOT EXISTS hospital_db;
 USE hospital_db;
 

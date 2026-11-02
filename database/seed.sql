@@ -3,6 +3,8 @@
 -- Sample Seed Data for Demonstrations & Testing
 -- ===================================================================
 
+-- For Local MySQL: selects hospital_db
+-- For Managed Cloud MySQL (e.g. Aiven): skip or comment if running inside your assigned database (e.g. defaultdb)
 USE hospital_db;
 
 -- Clear existing data

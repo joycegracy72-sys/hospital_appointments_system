@@ -183,3 +183,42 @@ When a patient is deactivated:
 UPDATE patients SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE patient_id = ?
 ```
 The patient is hidden from the booking form, but their historical consultation records and audit logs remain linked via foreign keys (`ON DELETE RESTRICT`).
+
+---
+
+## 🌐 Free-Tier Cloud Deployment Guide (Render + Aiven MySQL)
+
+Deploy the full-stack system with a single public URL on **Render** (Docker Web Service) backed by a managed **Aiven Free MySQL** database.
+
+### Step 1: Provision Aiven Free MySQL
+1. Sign up / Log in to [Aiven.io](https://aiven.io/).
+2. Create a new service -> Select **MySQL** (Free Tier).
+3. Once running, go to the **Overview** tab:
+   - Note down: **Host**, **Port**, **User** (`avnadmin`), and **Password**.
+   - Note down the database name (defaults to `defaultdb`).
+4. In Aiven Console (or via MySQL Workbench / DBeaver using the connection details with SSL enabled):
+   - Run the DDL from `database/schema.sql` (skip the `CREATE DATABASE` line if working inside `defaultdb`).
+   - (Optional) Run `database/seed.sql` to populate sample demo data.
+
+### Step 2: Deploy on Render as Docker Web Service
+1. Log in to [Render.com](https://render.com/).
+2. Click **New +** -> **Web Service**.
+3. Connect your GitHub repository: `https://github.com/joycegracy72-sys/hospital_appointments_system.git`.
+4. Configure service settings:
+   - **Name:** `hospital-appointments-system` (or your preferred name)
+   - **Region:** Choose the region closest to your Aiven database
+   - **Branch:** `master`
+   - **Runtime:** `Docker`
+   - **Instance Type:** `Free`
+5. Under **Environment Variables**, add:
+   | Key | Value | Description |
+   | :--- | :--- | :--- |
+   | `DB_URL` | `jdbc:mysql://<AIVEN_HOST>:<AIVEN_PORT>/<AIVEN_DB>?sslMode=REQUIRED` | MySQL JDBC URL with required TLS |
+   | `DB_USERNAME` | `<AIVEN_USER>` (e.g. `avnadmin`) | Cloud database username |
+   | `DB_PASSWORD` | `<AIVEN_PASSWORD>` | Cloud database password |
+
+6. Click **Deploy Web Service**.
+7. Render will build the container using the multi-stage `Dockerfile` and launch the application.
+
+Your complete application (Vite SPA frontend + Spring Boot REST API) will be live at:
+👉 **`https://<your-service-name>.onrender.com`**
