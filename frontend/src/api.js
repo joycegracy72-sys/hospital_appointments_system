@@ -121,6 +121,34 @@ export const api = {
     });
   },
 
+  // Protected Doctor Rest Periods
+  getDoctorRestPeriods(doctorId) {
+    return request(`/doctors/${doctorId}/rest-periods`);
+  },
+
+  addDoctorRestPeriod(doctorId, data) {
+    return request(`/doctors/${doctorId}/rest-periods`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteDoctorRestPeriod(restId) {
+    return request(`/doctors/rest-periods/${restId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Doctor Timeline & Workload
+  getDoctorTimeline(doctorId, date) {
+    return request(`/doctors/${doctorId}/timeline?date=${date}`);
+  },
+
+  getDoctorWorkload(date) {
+    const query = date ? `?date=${date}` : '';
+    return request(`/doctors/workload${query}`);
+  },
+
   // Appointments
   getAppointments({ date, doctorId, patientId, status } = {}) {
     const params = new URLSearchParams();
@@ -162,6 +190,83 @@ export const api = {
     if (notes) params.append('notes', notes);
     return request(`/appointments/${id}/status?${params.toString()}`, {
       method: 'PATCH',
+    });
+  },
+
+  checkInAppointment(id) {
+    return request(`/appointments/${id}/check-in`, {
+      method: 'PATCH',
+    });
+  },
+
+  // Intelligent Slot Recommendations
+  recommendSlot(doctorId, patientId, date, preferredStartTime) {
+    const params = new URLSearchParams({ doctorId, patientId, date });
+    if (preferredStartTime) params.append('preferredStartTime', preferredStartTime);
+    return request(`/appointments/recommend?${params.toString()}`);
+  },
+
+  recommendWorkloadBalancedSlot(specialization, patientId, date, preferredStartTime) {
+    const params = new URLSearchParams({ specialization, patientId, date });
+    if (preferredStartTime) params.append('preferredStartTime', preferredStartTime);
+    return request(`/appointments/recommend/workload?${params.toString()}`);
+  },
+
+  // Live Patient Queue
+  getLiveQueue({ date, doctorId } = {}) {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    if (doctorId) params.append('doctorId', doctorId);
+    const query = params.toString();
+    return request(`/appointments/queue${query ? '?' + query : ''}`);
+  },
+
+  // Schedule Conflicts Scanner
+  getScheduleConflicts(fromDate) {
+    const query = fromDate ? `?fromDate=${fromDate}` : '';
+    return request(`/appointments/conflicts${query}`);
+  },
+
+  // Schedule Digital Twin / What-If Simulator
+  previewSimulation(data) {
+    return request('/simulation/preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  applySimulation(data) {
+    return request('/simulation/apply', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Intelligent Cancellation Waitlist
+  getWaitlist({ status, date } = {}) {
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (date) params.append('date', date);
+    const query = params.toString();
+    return request(`/waitlist${query ? '?' + query : ''}`);
+  },
+
+  addToWaitlist(data) {
+    return request('/waitlist', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  acceptWaitlistOffer(id) {
+    return request(`/waitlist/${id}/accept`, {
+      method: 'POST',
+    });
+  },
+
+  rejectWaitlistOffer(id) {
+    return request(`/waitlist/${id}/reject`, {
+      method: 'POST',
     });
   },
 };

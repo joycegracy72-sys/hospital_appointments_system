@@ -28,6 +28,7 @@ public class AppointmentDetailResponse {
     private String reasonForVisit;
     private String notes;
     private String cancellationReason;
+    private LocalDateTime checkInTime;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -157,6 +158,14 @@ public class AppointmentDetailResponse {
 
     public void setCancellationReason(String cancellationReason) {
         this.cancellationReason = cancellationReason;
+    }
+
+    public LocalDateTime getCheckInTime() {
+        return checkInTime;
+    }
+
+    public void setCheckInTime(LocalDateTime checkInTime) {
+        this.checkInTime = checkInTime;
     }
 
     public LocalDateTime getCreatedAt() {

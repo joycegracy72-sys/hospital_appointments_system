@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Optional;
 
@@ -47,6 +48,12 @@ class AppointmentServiceTest {
 
     @Mock
     private DoctorAvailabilityRepository availabilityRepository;
+
+    @Mock
+    private SchedulingEngineService schedulingEngine;
+
+    @Mock
+    private WaitlistService waitlistService;
 
     @InjectMocks
     private AppointmentService appointmentService;
@@ -76,17 +83,20 @@ class AppointmentServiceTest {
         validRequest.setDoctorId(10L);
         validRequest.setAppointmentDate(LocalDate.now().plusDays(1));
         validRequest.setStartTime(LocalTime.of(10, 0));
-        validRequest.setEndTime(LocalTime.of(10, 30));
+        validRequest.setEndTime(LocalTime.of(10, 20));
         validRequest.setReasonForVisit("Routine check-up");
     }
 
     @Test
-    @DisplayName("Should successfully book appointment when doctor has no conflicts")
+    @DisplayName("Should successfully book appointment with calculated 20-minute slot when doctor has no conflicts")
     void testBookAppointment_Success() {
         when(patientRepository.findById(1L)).thenReturn(Optional.of(activePatient));
         when(doctorRepository.findById(10L)).thenReturn(Optional.of(activeDoctor));
         when(availabilityRepository.hasAnyAvailabilityConfigured(eq(10L), any(LocalDate.class))).thenReturn(false);
+        when(schedulingEngine.getRestPeriodReason(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class))).thenReturn(null);
         when(appointmentRepository.hasOverlap(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(null)))
+                .thenReturn(false);
+        when(appointmentRepository.hasPatientOverlap(eq(1L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(null)))
                 .thenReturn(false);
         when(appointmentRepository.save(any(Appointment.class))).thenReturn(100L);
 
@@ -111,6 +121,7 @@ class AppointmentServiceTest {
         when(patientRepository.findById(1L)).thenReturn(Optional.of(activePatient));
         when(doctorRepository.findById(10L)).thenReturn(Optional.of(activeDoctor));
         when(availabilityRepository.hasAnyAvailabilityConfigured(eq(10L), any(LocalDate.class))).thenReturn(false);
+        when(schedulingEngine.getRestPeriodReason(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class))).thenReturn(null);
         when(appointmentRepository.hasOverlap(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(null)))
                 .thenReturn(true);
 
@@ -119,6 +130,39 @@ class AppointmentServiceTest {
         });
 
         assertEquals("Doctor already has an active overlapping appointment during this time slot.", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should reject booking if slot collides with a protected doctor rest period")
+    void testBookAppointment_RestPeriodConflict_ThrowsException() {
+        when(patientRepository.findById(1L)).thenReturn(Optional.of(activePatient));
+        when(doctorRepository.findById(10L)).thenReturn(Optional.of(activeDoctor));
+        when(availabilityRepository.hasAnyAvailabilityConfigured(eq(10L), any(LocalDate.class))).thenReturn(false);
+        when(schedulingEngine.getRestPeriodReason(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class)))
+                .thenReturn("Protected rest period (13:00 - 14:00: Lunch Break)");
+
+        BusinessConflictException ex = assertThrows(BusinessConflictException.class, () -> {
+            appointmentService.bookAppointment(validRequest);
+        });
+
+        assertEquals("The requested slot overlaps a protected rest period: Protected rest period (13:00 - 14:00: Lunch Break). Suggested alternative: select a slot outside the protected rest window.", ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("Should reject booking if patient already has another active appointment at that time")
+    void testBookAppointment_PatientOverlap_ThrowsException() {
+        when(patientRepository.findById(1L)).thenReturn(Optional.of(activePatient));
+        when(doctorRepository.findById(10L)).thenReturn(Optional.of(activeDoctor));
+        when(availabilityRepository.hasAnyAvailabilityConfigured(eq(10L), any(LocalDate.class))).thenReturn(false);
+        when(schedulingEngine.getRestPeriodReason(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class))).thenReturn(null);
+        when(appointmentRepository.hasOverlap(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(null))).thenReturn(false);
+        when(appointmentRepository.hasPatientOverlap(eq(1L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(null))).thenReturn(true);
+
+        BusinessConflictException ex = assertThrows(BusinessConflictException.class, () -> {
+            appointmentService.bookAppointment(validRequest);
+        });
+
+        assertEquals("Patient already has an active overlapping appointment during this time slot.", ex.getMessage());
     }
 
     @Test
@@ -140,11 +184,16 @@ class AppointmentServiceTest {
         Appointment existing = new Appointment();
         existing.setAppointmentId(50L);
         existing.setDoctorId(10L);
+        existing.setPatientId(1L);
         existing.setStatus("SCHEDULED");
 
         when(appointmentRepository.findById(50L)).thenReturn(Optional.of(existing));
+        when(doctorRepository.findById(10L)).thenReturn(Optional.of(activeDoctor));
         when(availabilityRepository.hasAnyAvailabilityConfigured(eq(10L), any(LocalDate.class))).thenReturn(false);
+        when(schedulingEngine.getRestPeriodReason(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class))).thenReturn(null);
         when(appointmentRepository.hasOverlap(eq(10L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(50L)))
+                .thenReturn(false);
+        when(appointmentRepository.hasPatientOverlap(eq(1L), any(LocalDate.class), any(LocalTime.class), any(LocalTime.class), eq(50L)))
                 .thenReturn(false);
 
         AppointmentDetailResponse detail = new AppointmentDetailResponse();
@@ -155,7 +204,7 @@ class AppointmentServiceTest {
         AppointmentRescheduleRequest rescheduleRequest = new AppointmentRescheduleRequest();
         rescheduleRequest.setAppointmentDate(LocalDate.now().plusDays(2));
         rescheduleRequest.setStartTime(LocalTime.of(11, 0));
-        rescheduleRequest.setEndTime(LocalTime.of(11, 30));
+        rescheduleRequest.setEndTime(LocalTime.of(11, 20));
 
         AppointmentDetailResponse result = appointmentService.rescheduleAppointment(50L, rescheduleRequest);
 
@@ -165,11 +214,15 @@ class AppointmentServiceTest {
     }
 
     @Test
-    @DisplayName("Should successfully cancel appointment with valid reason")
+    @DisplayName("Should successfully cancel appointment and cascade to waitlist")
     void testCancelAppointment_Success() {
         Appointment existing = new Appointment();
         existing.setAppointmentId(50L);
         existing.setStatus("SCHEDULED");
+        existing.setDoctorId(10L);
+        existing.setAppointmentDate(LocalDate.now().plusDays(1));
+        existing.setStartTime(LocalTime.of(10, 0));
+        existing.setEndTime(LocalTime.of(10, 20));
 
         when(appointmentRepository.findById(50L)).thenReturn(Optional.of(existing));
 
@@ -186,5 +239,27 @@ class AppointmentServiceTest {
         assertNotNull(result);
         assertEquals("CANCELLED", result.getStatus());
         verify(appointmentRepository).cancel(50L, "Patient requested cancellation due to travel");
+        verify(waitlistService).processCancelledSlot(existing);
+    }
+
+    @Test
+    @DisplayName("Should successfully check-in a scheduled patient")
+    void testCheckInAppointment_Success() {
+        Appointment existing = new Appointment();
+        existing.setAppointmentId(60L);
+        existing.setStatus("SCHEDULED");
+
+        when(appointmentRepository.findById(60L)).thenReturn(Optional.of(existing));
+
+        AppointmentDetailResponse detail = new AppointmentDetailResponse();
+        detail.setAppointmentId(60L);
+        detail.setStatus("CHECKED_IN");
+        when(appointmentRepository.findDetailById(60L)).thenReturn(Optional.of(detail));
+
+        AppointmentDetailResponse result = appointmentService.checkInAppointment(60L);
+
+        assertNotNull(result);
+        assertEquals("CHECKED_IN", result.getStatus());
+        verify(appointmentRepository).checkIn(eq(60L), any(LocalDateTime.class));
     }
 }

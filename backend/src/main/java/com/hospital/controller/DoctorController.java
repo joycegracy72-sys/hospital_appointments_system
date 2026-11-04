@@ -3,10 +3,14 @@ package com.hospital.controller;
 import com.hospital.dto.request.AvailabilityRequest;
 import com.hospital.dto.request.DoctorRequest;
 import com.hospital.dto.response.ApiResponse;
+import com.hospital.dto.response.DoctorTimelineResponse;
+import com.hospital.dto.response.DoctorWorkloadDTO;
 import com.hospital.model.Doctor;
 import com.hospital.model.DoctorAvailability;
 import com.hospital.service.DoctorService;
+import com.hospital.service.SchedulingEngineService;
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -26,9 +31,11 @@ import java.util.List;
 public class DoctorController {
 
     private final DoctorService doctorService;
+    private final SchedulingEngineService schedulingEngineService;
 
-    public DoctorController(DoctorService doctorService) {
+    public DoctorController(DoctorService doctorService, SchedulingEngineService schedulingEngineService) {
         this.doctorService = doctorService;
+        this.schedulingEngineService = schedulingEngineService;
     }
 
     @GetMapping
@@ -87,5 +94,27 @@ public class DoctorController {
     public ResponseEntity<ApiResponse<Void>> deleteAvailability(@PathVariable Long availabilityId) {
         doctorService.deleteAvailability(availabilityId);
         return ResponseEntity.ok(ApiResponse.ok("Availability slot deleted successfully", null));
+    }
+
+    /**
+     * Visual Timeline Generator for a doctor's schedule on a given date (20-min slots).
+     */
+    @GetMapping("/{id}/timeline")
+    public ResponseEntity<ApiResponse<DoctorTimelineResponse>> getDoctorTimeline(
+            @PathVariable Long id,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        DoctorTimelineResponse timeline = schedulingEngineService.getDoctorTimeline(id, date);
+        return ResponseEntity.ok(ApiResponse.ok("Doctor schedule timeline generated", timeline));
+    }
+
+    /**
+     * Workload Overview: Returns scheduled workload counts and metrics across active doctors.
+     */
+    @GetMapping("/workload")
+    public ResponseEntity<ApiResponse<List<DoctorWorkloadDTO>>> getWorkloadOverview(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        LocalDate targetDate = date != null ? date : LocalDate.now();
+        List<DoctorWorkloadDTO> list = schedulingEngineService.getWorkloadOverview(targetDate);
+        return ResponseEntity.ok(ApiResponse.ok("Doctor workload overview retrieved", list));
     }
 }

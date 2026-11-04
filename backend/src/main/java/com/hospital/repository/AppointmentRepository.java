@@ -15,6 +15,7 @@ import java.sql.Statement;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -106,6 +107,13 @@ public class AppointmentRepository {
         detail.setNotes(rs.getString("notes"));
         detail.setCancellationReason(rs.getString("cancellation_reason"));
 
+        try {
+            Timestamp checkIn = rs.getTimestamp("check_in_time");
+            if (checkIn != null) {
+                detail.setCheckInTime(checkIn.toLocalDateTime());
+            }
+        } catch (Exception ignored) {}
+
         Timestamp createdAt = rs.getTimestamp("created_at");
         if (createdAt != null) {
             detail.setCreatedAt(createdAt.toLocalDateTime());
@@ -196,7 +204,7 @@ public class AppointmentRepository {
                 "SELECT COUNT(*) FROM appointments " +
                 "WHERE doctor_id = ? " +
                 "AND appointment_date = ? " +
-                "AND status IN ('SCHEDULED', 'RESCHEDULED') " +
+                "AND status IN ('SCHEDULED', 'RESCHEDULED', 'CHECKED_IN') " +
                 "AND (start_time < ? AND end_time > ?) "
         );
         List<Object> params = new ArrayList<>();
@@ -210,6 +218,26 @@ public class AppointmentRepository {
             params.add(excludeAppointmentId);
         }
 
+        Integer count = jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
+        return count != null && count > 0;
+    }
+
+    public boolean hasPatientOverlap(Long patientId, LocalDate appointmentDate, LocalTime startTime, LocalTime endTime, Long excludeAppointmentId) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT COUNT(*) FROM appointments " +
+                "WHERE patient_id = ? AND appointment_date = ? " +
+                "AND status IN ('SCHEDULED', 'RESCHEDULED', 'CHECKED_IN') " +
+                "AND (start_time < ? AND end_time > ?) "
+        );
+        List<Object> params = new ArrayList<>();
+        params.add(patientId);
+        params.add(Date.valueOf(appointmentDate));
+        params.add(Time.valueOf(endTime));
+        params.add(Time.valueOf(startTime));
+        if (excludeAppointmentId != null) {
+            sql.append("AND appointment_id != ? ");
+            params.add(excludeAppointmentId);
+        }
         Integer count = jdbcTemplate.queryForObject(sql.toString(), Integer.class, params.toArray());
         return count != null && count > 0;
     }
@@ -299,5 +327,66 @@ public class AppointmentRepository {
                      "WHERE a.appointment_date >= ? AND a.status IN ('SCHEDULED', 'RESCHEDULED') " +
                      "ORDER BY a.appointment_date ASC, a.start_time ASC LIMIT ?";
         return jdbcTemplate.query(sql, detailRowMapper, Date.valueOf(fromDate), limit);
+    }
+
+    public int countScheduledByDoctorAndDate(Long doctorId, LocalDate date) {
+        String sql = "SELECT COUNT(*) FROM appointments WHERE doctor_id = ? AND appointment_date = ? " +
+                     "AND status IN ('SCHEDULED', 'RESCHEDULED', 'CHECKED_IN')";
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class, doctorId, Date.valueOf(date));
+        return count != null ? count : 0;
+    }
+
+    public List<Appointment> findScheduledByDoctorAndDate(Long doctorId, LocalDate date) {
+        String sql = "SELECT * FROM appointments WHERE doctor_id = ? AND appointment_date = ? " +
+                     "AND status IN ('SCHEDULED', 'RESCHEDULED', 'CHECKED_IN') ORDER BY start_time ASC";
+        return jdbcTemplate.query(sql, appointmentRowMapper, doctorId, Date.valueOf(date));
+    }
+
+    public int checkIn(Long appointmentId, LocalDateTime checkInTime) {
+        String sql = "UPDATE appointments SET status = 'CHECKED_IN', check_in_time = ?, updated_at = CURRENT_TIMESTAMP " +
+                     "WHERE appointment_id = ? AND status IN ('SCHEDULED', 'RESCHEDULED')";
+        return jdbcTemplate.update(sql, Timestamp.valueOf(checkInTime), appointmentId);
+    }
+
+    public List<AppointmentDetailResponse> findQueueByDate(LocalDate date, Long doctorId) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT a.appointment_id, p.patient_id, " +
+                "CONCAT(p.first_name, ' ', p.last_name) AS patient_name, " +
+                "p.email AS patient_email, p.phone AS patient_phone, " +
+                "d.doctor_id, CONCAT(d.first_name, ' ', d.last_name) AS doctor_name, " +
+                "d.specialization AS doctor_specialization, d.consultation_fee, " +
+                "a.appointment_date, a.start_time, a.end_time, a.status, " +
+                "a.reason_for_visit, a.notes, a.cancellation_reason, a.check_in_time, " +
+                "a.created_at, a.updated_at " +
+                "FROM appointments a " +
+                "JOIN patients p ON a.patient_id = p.patient_id " +
+                "JOIN doctors d ON a.doctor_id = d.doctor_id " +
+                "WHERE a.appointment_date = ? AND a.status IN ('CHECKED_IN', 'SCHEDULED', 'RESCHEDULED') "
+        );
+        List<Object> params = new ArrayList<>();
+        params.add(Date.valueOf(date));
+        if (doctorId != null) {
+            sql.append("AND a.doctor_id = ? ");
+            params.add(doctorId);
+        }
+        sql.append("ORDER BY CASE WHEN a.status = 'CHECKED_IN' THEN 0 ELSE 1 END, a.start_time ASC");
+        return jdbcTemplate.query(sql.toString(), detailRowMapper, params.toArray());
+    }
+
+    public List<AppointmentDetailResponse> findAllActiveForConflictDetection(LocalDate fromDate) {
+        String sql = "SELECT a.appointment_id, p.patient_id, " +
+                     "CONCAT(p.first_name, ' ', p.last_name) AS patient_name, " +
+                     "p.email AS patient_email, p.phone AS patient_phone, " +
+                     "d.doctor_id, CONCAT(d.first_name, ' ', d.last_name) AS doctor_name, " +
+                     "d.specialization AS doctor_specialization, d.consultation_fee, " +
+                     "a.appointment_date, a.start_time, a.end_time, a.status, " +
+                     "a.reason_for_visit, a.notes, a.cancellation_reason, a.check_in_time, " +
+                     "a.created_at, a.updated_at " +
+                     "FROM appointments a " +
+                     "JOIN patients p ON a.patient_id = p.patient_id " +
+                     "JOIN doctors d ON a.doctor_id = d.doctor_id " +
+                     "WHERE a.appointment_date >= ? AND a.status IN ('SCHEDULED', 'RESCHEDULED', 'CHECKED_IN') " +
+                     "ORDER BY a.appointment_date ASC, a.start_time ASC";
+        return jdbcTemplate.query(sql, detailRowMapper, Date.valueOf(fromDate));
     }
 }

@@ -11,6 +11,8 @@ USE hospital_db;
 
 -- Disable foreign key checks for clean drops
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS appointment_waitlist;
+DROP TABLE IF EXISTS doctor_rest_periods;
 DROP TABLE IF EXISTS appointments;
 DROP TABLE IF EXISTS doctor_availability;
 DROP TABLE IF EXISTS doctor_availabilities;
@@ -76,7 +78,23 @@ CREATE TABLE doctor_availability (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- -------------------------------------------------------------------
--- 4. Appointments Table
+-- 4. Doctor Protected Rest Periods Table
+-- Enforces mandatory break and rest periods that cannot be booked.
+-- -------------------------------------------------------------------
+CREATE TABLE doctor_rest_periods (
+    rest_id INT AUTO_INCREMENT PRIMARY KEY,
+    doctor_id INT NOT NULL,
+    rest_date DATE NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    reason VARCHAR(100) NOT NULL DEFAULT 'Rest / Lunch Break',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id) ON DELETE CASCADE,
+    INDEX idx_rest_doc_date (doctor_id, rest_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------
+-- 5. Appointments Table
 -- Tracks scheduled, completed, cancelled, and no-show consultations.
 -- Enforces referential integrity with RESTRICT on delete so deactivated
 -- doctors or patients never break existing historical records.
@@ -88,10 +106,11 @@ CREATE TABLE appointments (
     appointment_date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    status ENUM('SCHEDULED', 'COMPLETED', 'CANCELLED', 'RESCHEDULED', 'NO_SHOW') NOT NULL DEFAULT 'SCHEDULED',
+    status ENUM('SCHEDULED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'RESCHEDULED', 'NO_SHOW') NOT NULL DEFAULT 'SCHEDULED',
     reason_for_visit VARCHAR(255) NULL,
     notes TEXT NULL,
     cancellation_reason VARCHAR(255) NULL,
+    check_in_time TIMESTAMP NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE RESTRICT,
@@ -100,4 +119,32 @@ CREATE TABLE appointments (
     INDEX idx_appointment_patient (patient_id, appointment_date),
     INDEX idx_appointment_status (status),
     INDEX idx_appointment_date (appointment_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- -------------------------------------------------------------------
+-- 6. Appointment Waitlist Table
+-- Intelligently reallocates cancelled slots to waiting patients.
+-- -------------------------------------------------------------------
+CREATE TABLE appointment_waitlist (
+    waitlist_id INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT NOT NULL,
+    doctor_id INT NULL,
+    specialization VARCHAR(100) NULL,
+    preferred_date DATE NOT NULL,
+    preferred_start_time TIME NULL,
+    preferred_end_time TIME NULL,
+    status ENUM('WAITING', 'OFFERED', 'ACCEPTED', 'EXPIRED', 'CANCELLED') NOT NULL DEFAULT 'WAITING',
+    offered_appointment_date DATE NULL,
+    offered_start_time TIME NULL,
+    offered_end_time TIME NULL,
+    offered_doctor_id INT NULL,
+    offer_expires_at TIMESTAMP NULL,
+    notes VARCHAR(255) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (patient_id) REFERENCES patients(patient_id) ON DELETE RESTRICT,
+    FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id) ON DELETE RESTRICT,
+    FOREIGN KEY (offered_doctor_id) REFERENCES doctors(doctor_id) ON DELETE RESTRICT,
+    INDEX idx_waitlist_status (status),
+    INDEX idx_waitlist_match (preferred_date, specialization, doctor_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

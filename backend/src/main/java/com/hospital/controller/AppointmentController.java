@@ -5,6 +5,9 @@ import com.hospital.dto.request.AppointmentRequest;
 import com.hospital.dto.request.AppointmentRescheduleRequest;
 import com.hospital.dto.response.ApiResponse;
 import com.hospital.dto.response.AppointmentDetailResponse;
+import com.hospital.dto.response.ConflictReportResponse;
+import com.hospital.dto.response.QueueItemResponse;
+import com.hospital.dto.response.SlotRecommendationResponse;
 import com.hospital.service.AppointmentService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -57,6 +61,28 @@ public class AppointmentController {
                 .body(ApiResponse.ok("Appointment booked successfully", booked));
     }
 
+    @GetMapping("/recommend")
+    public ResponseEntity<ApiResponse<SlotRecommendationResponse>> recommendSlot(
+            @RequestParam Long doctorId,
+            @RequestParam Long patientId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime preferredStartTime) {
+        SlotRecommendationResponse recommendation =
+                appointmentService.recommendSlot(doctorId, patientId, date, preferredStartTime);
+        return ResponseEntity.ok(ApiResponse.ok("Deterministic slot recommendation generated", recommendation));
+    }
+
+    @GetMapping("/recommend/workload")
+    public ResponseEntity<ApiResponse<SlotRecommendationResponse>> recommendWorkloadBalancedSlot(
+            @RequestParam String specialization,
+            @RequestParam Long patientId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime preferredStartTime) {
+        SlotRecommendationResponse recommendation =
+                appointmentService.recommendWorkloadBalancedSlot(specialization, patientId, date, preferredStartTime);
+        return ResponseEntity.ok(ApiResponse.ok("Workload-balanced slot recommendation generated", recommendation));
+    }
+
     @PutMapping("/{id}/reschedule")
     public ResponseEntity<ApiResponse<AppointmentDetailResponse>> rescheduleAppointment(
             @PathVariable Long id,
@@ -80,5 +106,28 @@ public class AppointmentController {
             @RequestParam(required = false) String notes) {
         AppointmentDetailResponse updated = appointmentService.updateStatus(id, status, notes);
         return ResponseEntity.ok(ApiResponse.ok("Appointment status updated successfully", updated));
+    }
+
+    @PatchMapping("/{id}/check-in")
+    public ResponseEntity<ApiResponse<AppointmentDetailResponse>> checkInAppointment(@PathVariable Long id) {
+        AppointmentDetailResponse checkedIn = appointmentService.checkInAppointment(id);
+        return ResponseEntity.ok(ApiResponse.ok("Patient checked in successfully", checkedIn));
+    }
+
+    @GetMapping("/queue")
+    public ResponseEntity<ApiResponse<List<QueueItemResponse>>> getLiveQueue(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) Long doctorId) {
+        LocalDate targetDate = date != null ? date : LocalDate.now();
+        List<QueueItemResponse> queue = appointmentService.getLiveQueue(targetDate, doctorId);
+        return ResponseEntity.ok(ApiResponse.ok("Live patient queue retrieved", queue));
+    }
+
+    @GetMapping("/conflicts")
+    public ResponseEntity<ApiResponse<ConflictReportResponse>> detectScheduleConflicts(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
+        LocalDate targetDate = fromDate != null ? fromDate : LocalDate.now();
+        ConflictReportResponse report = appointmentService.detectScheduleConflicts(targetDate);
+        return ResponseEntity.ok(ApiResponse.ok("Schedule conflict scan complete", report));
     }
 }
